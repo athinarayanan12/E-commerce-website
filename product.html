@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="style.css"/>
+    <style>
+        h1 {
+            text-align: center;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body >
+    <div class="container">
+        <h1 class="mb-4">E-Commerce Product Page</h1>
+        <div class="search-product">
+            <input id="search-product" type="text" placeholder="Search a product..."/>
+            <select id="price-range">
+                <option value="" selected>Select Price Range</option>
+                <option value="0-50">Under $50</option>
+                <option value="50 - 100">$50 - $100</option>
+                <option value="101 - 200">$101 - $200</option>
+                <option value="201-300">$201 - $300</option>
+                <option value="301-500">$301 - $500</option>
+                <option value="500-1000">$500 - $1000</option>
+            </select>
+        </div>
+        <div id="product-list" class="row">
+            <!-- Product cards dynamically added here-->
+        </div>
+        <div id="error-message" class="error-message"></div>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded",function(){
+            //base class
+            class Product {
+                constructor(name, price, description, image) {
+                    this.name = name;
+                    this.price = price;
+                    this.description = description;
+                    this.image = image;
+                }
+
+                display() {
+                    return `
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                            <div class="card h-100">
+                                <img src="${this.image}" class="card-img-top" alt="${this.name}">
+                                <div class="card-body">
+                                    <h5 class="card-title">${this.name}</h5>
+                                    <p class="card-text">${this.description}</p>
+                                    <p class="card-text font-weight-bold">$${this.price.toFixed(2)}</p>
+                                    <div class="d-flex align-items-center">
+                                        <input type="number" class="quantity-input" value="1" min="1">
+                                        <a href="#" class="btn btn-primary add-to-cart" data-product='${JSON.stringify(this)}'>Add to Cart</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            class DiscountedProduct extends Product {
+                constructor(name, price, description, image, discount) {
+                    super(name, price, description, image);
+                    this.discount = discount;
+                }
+
+                display() {
+                    const discountedPrice = this.price - (this.price * (this.discount / 100));
+                    return `
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                            <div class="card h-100">
+                                <img src="${this.image}" class="card-img-top" alt="${this.name}">
+                                <div class="card-body">
+                                    <h5 class="card-title">${this.name}</h5>
+                                    <p class="card-text">${this.description}</p>
+                                    <p class="card-text font-weight-bold">$${discountedPrice.toFixed(2)}
+                                    <span class="badge badge-danger">${this.discount}% OFF</span></p>
+                                    <div class="d-flex align-items-center">
+                                        <input type="number" class="quantity-input" value="1" min="1">
+                                        <a href="#" class="btn btn-primary add-to-cart" data-product='${JSON.stringify(this)}'>Add to Cart</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Example dummy discounted product with a similar image
+            const discountedProduct = new DiscountedProduct(
+                "Dummy Discounted Product",
+                40.00,
+                "This is a dummy discounted product.",
+                "https://placehold.co/400x300/110e0e75/black?text=Discounted+Product",
+                30 // 30% discount
+            );
+            fetch('products.json')
+                .then((response)=>{
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok.');
+                    }
+                    return response.json();
+                })
+                .then((data)=>{
+                    window.products = data; // Store products globally for filtering
+                    displayProducts(data); // Display all products initially
+
+                    // Also display the dummy discounted product for inheritance demonstration
+                    const productList = document.getElementById('product-list');
+                    productList.innerHTML += discountedProduct.display();
+                    
+                    // Attach event listeners after products have been added
+                    attachEventListeners();
+                })
+                .catch(error=>{
+                    console.error('Error fetching products:',error);
+                    document.getElementById('error-message').textContent='Failed to load products. Please try again later.';
+                })
+            
+     });
+   // Function to add a product to the cart (Create and Update Operation)
+   function addToCart(product, quantity) {
+        try {
+            let cart = JSON.parse(localStorage.getItem('cart')) || []; // Get existing cart or initialize empty array
+            const existingProduct = cart.find(item => item.name === product.name); // Check if product already in cart
+            if (existingProduct) {
+                existingProduct.quantity += quantity; // Update quantity if product exists
+            } else {
+                product.quantity = quantity; // Set quantity for new product
+                cart.push(product); // Add new product to cart
+            }
+            localStorage.setItem('cart', JSON.stringify(cart)); // Save updated cart to local storage
+            alert('Product added to cart!'); // Notify user
+        } catch (error) {
+            console.error('Error adding product to cart:', error);
+            alert('Failed to add product to cart. Please try again.');
+        }
+    }
+    // document.addEventListener("input",function(){
+    //     handleSearchProduct();
+    // });
+    
+    function displayProducts(products){
+        const productpage = document.getElementById("product-list");
+        productpage.innerHTML="";
+        products.forEach((product)=>{
+                const card =document.createElement('div');
+                card.classList.add('col-lg-3','col-md-4','col-sm-6','mb-4');
+                card.innerHTML=`
+                <div class="card h-100">
+                    <img src="${product.image}" class="card-img-top" alt="${product.name}">
+                    <div class="card-body">
+                        <h5 class="card-title">${product.name}</h5>
+                        <p class="card-text">${product.description}</p>
+                        <p class="card-text font-weight-bold">$${product.price.toFixed(2)}</p>
+                        <div class="cart-item-actions">
+                            <input class="quantity-input" type=number min="1" value="1"/>
+                            <a href="#" class="btn btn-primary add-to-cart" data-product='${JSON.stringify(product)}'>Add to Cart</a>
+                        <div>
+                    </div>
+                </div>`;
+                productpage.appendChild(card);
+        });
+        attachEventListeners();
+        // document.querySelectorAll(".add-to-cart").forEach(button =>{
+        //     button.addEventListener("click",(event)=>{
+        //         event.preventDefault();
+        //         const product = JSON.parse(event.target.getAttribute('data-product'));
+        //         const quantityInput = event.target.previousElementSibling;
+        //         //const quantityInput = document.getElementById("product-qty");
+        //         const quantity = parseInt(quantityInput.value);
+        //         addToCart(product, quantity);
+        //     });
+        // });
+    }
+    // Function to attach event listeners to add-to-cart buttons
+    function attachEventListeners() {
+        document.querySelectorAll('.add-to-cart').forEach(button => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault(); // Prevent default link behavior
+                try {
+                    const product = JSON.parse(event.target.getAttribute('data-product')); // Get product data
+                    const quantityInput = event.target.previousElementSibling; // Get quantity input
+                    const quantity = parseInt(quantityInput.value); // Get quantity value
+                    if (isNaN(quantity) || quantity <= 0) {
+                        throw new Error('Invalid quantity.');
+                    }
+                    addToCart(product, quantity); // Call function to add product to cart
+                } catch (error) {
+                    console.error('Error handling add-to-cart event:', error);
+                    alert('Error adding product to cart. Please check the quantity and try again.');
+                }
+            });
+        });
+    }
+    // Debounce function
+    function debounce(func, delay) {
+        let timerId;
+        return function (...args) {
+            clearTimeout(timerId);
+            timerId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+    function handleSearchProduct(){
+        try{
+            const searchInput = document.getElementById("search-product").value.toLowerCase();
+            const products =window.products.filter((product)=>{
+                if(product.name.includes(searchInput) || product.description.includes(searchInput)){
+                    return product;
+                }
+            });
+            displayProducts(products);
+        }catch(error){
+            console.error('Error handling search:', error);
+            document.getElementById('error-message').textContent = 'Error processing search. Please try again.';
+        }
+        
+    }
+    function applyFilter(){
+        try{
+            const priceRange = document.getElementById("price-range").value;
+            const searchInput = document.getElementById("search-product").value.toLowerCase();
+            let min =0,max=Infinity;
+            if(priceRange){
+                [min,max]=priceRange.split("-").map(Number);
+            }
+            const products =window.products.filter((product)=>{
+                if(product.name.includes(searchInput) || product.description.includes(searchInput)){
+                    if(product.price>=min && product.price<=max){
+                        return product;
+                    }
+                }
+            });
+            displayProducts(products);
+        }catch(error){
+            console.error('Error handling search:', error);
+            document.getElementById('error-message').textContent = 'Error processing search. Please try again.';
+        }
+    }
+    const searchInput = document.getElementById('search-product');
+     // Attach debounced search function to input event
+     searchInput.addEventListener('input', debounce(function () {
+        handleSearchProduct(this.value);
+            }, 3000)); // Debounce delay in milliseconds
+    document.getElementById("price-range").addEventListener("change",function(){
+        applyFilter();
+    });
+     </script>
+     <script src="products.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
